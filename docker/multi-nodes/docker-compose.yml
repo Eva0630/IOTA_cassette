@@ -1,0 +1,62 @@
+version: '3.8'
+
+networks:
+  multi-nodes_default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+
+services:
+  hornet-node-2:
+    image: iotaledger/iri:latest
+    container_name: hornet-node-2
+    restart: always
+    command: >-
+      --testnet true
+      --remote true
+      --remote-limit-api ""
+      --testnet-coordinator ZRMNUUBQHVRFRFBOQZYGAUBSTJSHDVIPXHUDA9VAXFTDSGGRILPVMYLVOLVCIEHLFMQKUOHUIUWILCXGD
+      --testnet-coordinator-security-level 1
+      --testnet-coordinator-signature-mode CURLP27
+      --mwm 9
+      --milestone-start 0
+      --milestone-keys 20
+      --snapshot /snapshot.txt
+      --max-depth 1000
+    ports:
+      - "14266:14265"
+      - "15601:15600"
+    volumes:
+      - ./node2/db:/iri/data
+      - /home/iota/iota-private/one-command-tangle/config/snapshot.txt:/snapshot.txt:ro
+    networks:
+      multi-nodes_default:
+        ipv4_address: 172.28.0.2
+
+  hornet-node-3:
+    image: iotaledger/iri:latest
+    container_name: hornet-node-3
+    restart: always
+    command: >-
+      --testnet true
+      --remote true
+      --remote-limit-api ""
+      --testnet-coordinator ZRMNUUBQHVRFRFBOQZYGAUBSTJSHDVIPXHUDA9VAXFTDSGGRILPVMYLVOLVCIEHLFMQKUOHUIUWILCXGD
+      --testnet-coordinator-security-level 1
+      --testnet-coordinator-signature-mode CURLP27
+      --mwm 9
+      --milestone-start 0
+      --milestone-keys 20
+      --snapshot /snapshot.txt
+      --max-depth 1000
+    ports:
+      - "14267:14265"
+      - "15602:15600"
+    volumes:
+      - ./node3/db:/iri/data
+      - /home/iota/iota-private/one-command-tangle/config/snapshot.txt:/snapshot.txt
+    networks:
+      multi-nodes_default:
+        ipv4_address: 172.28.0.3

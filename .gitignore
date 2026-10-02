@@ -1,0 +1,25 @@
+# 敏感設定檔（真正的.env，不是.env.example）
+.env
+*.env
+!*.env.example
+
+# Tangle 帳本資料庫（體積大，且是執行期產生的資料，不該進版控）
+**/db/
+**/mainnetdb/
+**/testnetdb/
+**/localsnapshots-db/
+**/localsnapshots-log/
+
+# Coordinator state（內部進度指標）
+**/state/
+
+# 備份檔案
+backups/
+*.enc
+
+# Python
+__pycache__/
+*.pyc
+
+# log
+*.log
