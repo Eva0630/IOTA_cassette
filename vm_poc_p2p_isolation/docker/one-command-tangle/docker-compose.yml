@@ -24,7 +24,7 @@ services:
     network_mode: host
     image: "iotaledger/iri:latest"
     volumes: 
-      - ./config/snapshot.txt:/snapshot.txt
+      - ./snapshot.txt:/snapshot.txt
       - ./db:/iri/data
     command: >-
       --testnet true

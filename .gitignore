@@ -23,3 +23,6 @@ __pycache__/
 
 # log
 *.log
+
+# Merkle tree layers（從上游 one-command-tangle 取得，體積大）
+**/layers/

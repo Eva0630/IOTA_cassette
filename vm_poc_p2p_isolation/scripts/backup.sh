@@ -4,7 +4,7 @@
 BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="backup_house_A_${BACKUP_DATE}"
 SECRET_KEY="${BACKUP_SECRET_KEY:?請先執行 export BACKUP_SECRET_KEY=你的密碼}"  # AES-256 Encrypted password
-HORNET_DATA_PATH="/home/iota/iota-private/one-command-tangle"  #HORNET Database path
+HORNET_DATA_PATH="${HORNET_DATA_PATH:-/home/iota/iota-private/one-command-tangle}" # Tangle data path (can be overridden by env var)
 
 echo "=== Start the backup job [$BACKUP_DATE] ==="
 
@@ -12,6 +12,8 @@ mkdir -p /tmp/${BACKUP_DIR}   # Create a temporary work folder
 echo "1. Copy HORNET ledger data and files"
 cp -r ${HORNET_DATA_PATH}/db /tmp/${BACKUP_DIR}/
 cp -r ${HORNET_DATA_PATH}/config /tmp/${BACKUP_DIR}/
+cp -r ${HORNET_DATA_PATH}/state /tmp/${BACKUP_DIR}/
+cp -r ${HORNET_DATA_PATH}/layers /tmp/${BACKUP_DIR}/
 echo "2. Package and encrypt using AES-256"
 tar -czf - -C /tmp/${BACKUP_DIR} . | openssl enc -aes-256-cbc -pbkdf2 -k ${SECRET_KEY} -out /tmp/${BACKUP_DIR}.enc
 

@@ -17,10 +17,16 @@
 - `scripts/`：稽核事件上鏈、跨屋隔離驗證、備份還原腳本
 
 ## 部署步驟
-1. 複製 `docker/one-command-tangle/.env.example` 為 `.env`，填入真實的 COMPASS_SEED
-2. 啟動主節點：`cd docker/one-command-tangle && docker compose up -d`
-3. 啟動第二、三節點：`cd docker/multi-nodes && docker compose up -d`
-4. 參考本次除錯紀錄手動設定三節點互為neighbor（MWM、coordinator address需一致）
+0. 前置條件：Compass 需要 `layers/`（預先建好的 Merkle tree），**它不是 `-bootstrap` 產生的，也不在本 repo 中**。
+   請 clone 上游專案取得：`git clone https://github.com/iota-community/one-command-tangle.git`，
+   再把其中的 `layers/` 整個複製到 `docker/one-command-tangle/layers/`（約 170MB，不要 commit）。
+1. 進入 `docker/one-command-tangle/`，執行 `cp .env.example .env`。
+   `COMPASS_SEED` 已是上游公開的預設值（僅限本機測試），不需要修改。
+2. **第一次啟動**前，把 `.env` 的 `EXTRA_COMPASS_FLAGS` 改成 `"-bootstrap"`，然後執行 `docker compose up -d`。
+3. 確認 `latestMilestoneIndex` 持續增加後，把 `EXTRA_COMPASS_FLAGS` 改回 `""`，之後都不要再用 `-bootstrap`，否則出現 `Network already bootstrapped`。
+4. 啟動第二、三節點：`cd ../multi-nodes && docker compose up -d`
+5. 手動設定三節點互為 neighbor（每次重啟後都要重做）。
+   遇到問題請參考 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
 ## 已知限制
 - Coordinator 已修復可正常發送 milestone，但demo腳本因繞開PyOTA/pysha3相依問題，

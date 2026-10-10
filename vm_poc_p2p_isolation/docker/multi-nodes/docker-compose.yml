@@ -30,7 +30,7 @@ services:
       - "15601:15600"
     volumes:
       - ./node2/db:/iri/data
-      - /home/iota/iota-private/one-command-tangle/config/snapshot.txt:/snapshot.txt:ro
+      - ../one-command-tangle/snapshot.txt:/snapshot.txt:ro
     networks:
       multi-nodes_default:
         ipv4_address: 172.28.0.2
@@ -56,7 +56,7 @@ services:
       - "15602:15600"
     volumes:
       - ./node3/db:/iri/data
-      - /home/iota/iota-private/one-command-tangle/config/snapshot.txt:/snapshot.txt
+      - ../one-command-tangle/snapshot.txt:/snapshot.txt:ro
     networks:
       multi-nodes_default:
         ipv4_address: 172.28.0.3
