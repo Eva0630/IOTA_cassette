@@ -13,6 +13,9 @@ services:
     image: iotaledger/iri:latest
     container_name: hornet-node-2
     restart: always
+    environment:
+      - JAVA_MAX_MEMORY=1500M
+      - JAVA_MIN_MEMORY=512M
     command: >-
       --testnet true
       --remote true
@@ -39,6 +42,9 @@ services:
     image: iotaledger/iri:latest
     container_name: hornet-node-3
     restart: always
+    environment:
+      - JAVA_MAX_MEMORY=1500M
+      - JAVA_MIN_MEMORY=512M
     command: >-
       --testnet true
       --remote true
@@ -56,7 +62,7 @@ services:
       - "15602:15600"
     volumes:
       - ./node3/db:/iri/data
-      - ../one-command-tangle/snapshot.txt:/snapshot.txt:ro
+      - ../one-command-tangle/snapshot.txt:/snapshot.txt
     networks:
       multi-nodes_default:
         ipv4_address: 172.28.0.3

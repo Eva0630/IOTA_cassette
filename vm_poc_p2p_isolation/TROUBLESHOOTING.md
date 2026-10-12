@@ -65,3 +65,17 @@ compose 裡已用 `ipv4_address` 固定 IP。
 - `restore.sh` 會先解密驗證，成功才停容器；舊資料改名為 `*.old_時間戳` 保留，確認無誤後再手動刪除。
 - 兩個腳本都需要先 `export BACKUP_SECRET_KEY=...`。
 - Coordinator 同一時間只能有一份在運作，不要讓兩台機器對同一條鏈各跑一個。
+
+## 9. 節點被系統殺掉：Exited (137) / OOMKilled
+
+- 判斷：`docker inspect <容器> --format '{{.State.OOMKilled}}'` 為 `true`。
+- 原因：IRI 預設 `JAVA_MAX_MEMORY=4G`，三個節點加起來超過主機記憶體。
+- 解法：在 compose 的 `environment` 設 `JAVA_MAX_MEMORY=1500M`、`JAVA_MIN_MEMORY=512M`（私有 testnet 流量小，足夠）。
+- 注意：拼字是 `environment`，拼錯 compose 不會生效。
+- Compass 因為連不上 IRI 會跟著崩潰，先啟動 IRI，確認 `getNodeInfo` 有回應，再啟動 Compass，最後執行 `setup_neighbors.sh`。
+
+## 10. docker compose 與 docker-compose
+
+- 新版 Docker 是 `docker compose`（空格），舊版是 `docker-compose`（連字號）。
+- 出現 `'compose' is not a docker command` 時，改用 `docker-compose`。
+- 重啟後 neighbor 會消失，執行 `docker/setup_neighbors.sh` 重新建立並驗證。

@@ -23,6 +23,10 @@ services:
   iri:
     network_mode: host
     image: "iotaledger/iri:latest"
+    restart: always
+    environment:
+      - JAVA_MAX_MEMORY=1500M
+      - JAVA_MIN_MEMORY=512M
     volumes: 
       - ./snapshot.txt:/snapshot.txt
       - ./db:/iri/data
