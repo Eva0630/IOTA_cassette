@@ -15,6 +15,7 @@ UC5.3 跨屋隔離 - 正式命名規則 + 加密插槽
 """
 
 import hashlib
+import crypto_utils as _crypto
 
 # 這個 SALT 正式環境必須存在後端的環境變數/密鑰管理服務，
 # 絕對不能寫死在程式碼或進版控，這裡先寫死只是為了讓範例可以直接執行。
@@ -79,11 +80,11 @@ def action_to_tag(action: str) -> str:
 
 
 def encrypt_message(plain_text: str, household_id: str) -> str:
-    return plain_text
+    return _crypto.encrypt(plain_text, household_id)
 
 
 def decrypt_message(cipher_text: str, household_id: str) -> str:
-    return cipher_text
+    return _crypto.decrypt(cipher_text, household_id)
 
 
 if __name__ == "__main__":

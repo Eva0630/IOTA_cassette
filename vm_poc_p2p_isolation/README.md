@@ -32,9 +32,18 @@
 - Coordinator 已修復可正常發送 milestone，但demo腳本因繞開PyOTA/pysha3相依問題，
   手動構造交易格式時bundle hash未真正計算，故測試交易無法進入confirmed狀態，
   僅能以「多節點資料一致性」作為簡化確認判準。
-- 加密機制為pass-through插槽，尚未實作真正的加密。
+- 加密已實作 (AES-256-GCM，每戶金鑰由主金鑰衍生)。加密啟用之前上鏈的紀錄無法刪改，仍為明文，查詢時會標記 [LEGACY-PLAINTEXT]。
 - 使用假的使用者字典模擬登入，尚未串接真實認證系統。
 
 ## 核心驗證腳本
 - `scripts/send_audit_event.py`：上鏈稽核事件
 - `scripts/audit_isolation_test.py`：驗證跨屋隔離(resident只能查自己家/admin可查全部且自動留痕)
+
+## 加密金鑰設定
+腳本需要環境變數 `AUDIT_MASTER_KEY`（64 個十六進位字元）才能加解密。
+
+    openssl rand -hex 32 > ~/.audit_master_key && chmod 600 ~/.audit_master_key
+    export AUDIT_MASTER_KEY=$(cat ~/.audit_master_key)
+
+- 金鑰不可進版控，請另外備份；遺失後所有加密紀錄將永久無法解密。
+- 測試：`cd scripts && python3 test_encryption.py`

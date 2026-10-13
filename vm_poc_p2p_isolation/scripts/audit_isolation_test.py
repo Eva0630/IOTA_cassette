@@ -4,6 +4,7 @@ UC5.3 跨屋隔離 - Admin存取行為本身也自動上鏈
 """
 import requests
 from audit_chain_utils import household_to_address, trytes_to_ascii, decrypt_message
+from crypto_utils import read_record
 from send_audit_event import send_audit_event   # 新增：拿來把Admin存取行為上鏈
 
 NODES = {
@@ -71,8 +72,8 @@ def query_audit_log(requester_username: str, target_household: str):
     decoded_records = []
     for name, trytes_list in trytes_by_node.items():
         for t in trytes_list:
-            decrypted = decrypt_message(t[:2187], actual_target)
-            decoded_records.append(trytes_to_ascii(decrypted))
+            raw = trytes_to_ascii(t[:2187])
+            decoded_records.append(read_record(raw, actual_target))
         break
 
     return {
@@ -96,7 +97,7 @@ def query_system_audit_log():
     gt_resp = requests.post(NODES["iri_1 (14265)"], json={
         "command": "getTrytes", "hashes": hashes
     }, headers=HEADERS).json()
-    return [trytes_to_ascii(t[:2187]) for t in gt_resp.get("trytes", [])]
+    return [read_record(trytes_to_ascii(t[:2187]), SYSTEM_AUDIT_HOUSEHOLD) for t in gt_resp.get("trytes", [])]
 
 
 if __name__ == "__main__":

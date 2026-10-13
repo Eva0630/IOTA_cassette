@@ -26,3 +26,7 @@ __pycache__/
 
 # Merkle tree layers（從上游 one-command-tangle 取得，體積大）
 **/layers/
+ 
+# encryption keys (never commit)
+.audit_master_key
+*.key
