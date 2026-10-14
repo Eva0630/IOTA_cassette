@@ -47,3 +47,12 @@
 
 - 金鑰不可進版控，請另外備份；遺失後所有加密紀錄將永久無法解密。
 - 測試：`cd scripts && python3 test_encryption.py`
+
+## Ledger Worker（待上鏈事件存證）
+`scripts/ledger_worker.py` 將 IOTA_API 的 `ledger_events(PENDING)` 以「雜湊存證」方式上鏈：
+鏈上只放 event_id + payload_hash（加密後），不放業務資料。
+
+- 送出前先查鏈，避免重複送出；三個節點回傳同一筆存證交易才標記 CONFIRMED。
+- `confirmation_method = MULTINODE_CONSISTENCY`：不是 milestone 確認（已知限制）。
+- 目前只支援 `--mock` 模式；待 IOTA_API 的 claim/confirm/fail 端點完成後補上 HTTP 版。
+- 測試：`cd scripts && python3 test_ledger_worker.py`
