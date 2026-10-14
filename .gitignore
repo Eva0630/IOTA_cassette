@@ -30,3 +30,4 @@ __pycache__/
 # encryption keys (never commit)
 .audit_master_key
 *.key
+mock_ledger_events.json

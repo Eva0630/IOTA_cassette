@@ -29,6 +29,7 @@ ACTION_TAG_MAP = {
     "view_camera": "VIEWCAMERA",
     "alert_triggered": "ALERTTRIG",
     "admin_access": "ADMINACCESS",
+    "ledger_anchor": "LEDGERANCHOR",
 }
 
 
