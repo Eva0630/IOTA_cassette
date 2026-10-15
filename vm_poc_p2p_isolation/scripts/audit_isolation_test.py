@@ -1,11 +1,12 @@
 """
-audit_isolation_test.py (v3)
-UC5.3 跨屋隔離 - Admin存取行為本身也自動上鏈
+audit_isolation_test.py (v4)
+UC5.3 cross-household isolation. Records are returned in chronological order.
 """
+import time
 import requests
-from audit_chain_utils import household_to_address, trytes_to_ascii, decrypt_message
-from crypto_utils import read_record
-from send_audit_event import send_audit_event   # 新增：拿來把Admin存取行為上鏈
+from audit_chain_utils import household_to_address
+from chain_time import records_in_order
+from send_audit_event import send_audit_event
 
 NODES = {
     "iri_1 (14265)": "http://localhost:14265",
@@ -20,7 +21,7 @@ FAKE_USERS = {
     "admin_1": {"household_id": None, "role": "admin"},
 }
 
-SYSTEM_AUDIT_HOUSEHOLD = "SYSTEM_AUDIT"  # Admin存取行為專屬的household分類
+SYSTEM_AUDIT_HOUSEHOLD = "SYSTEM_AUDIT"
 
 
 def query_audit_log(requester_username: str, target_household: str):
@@ -39,7 +40,6 @@ def query_audit_log(requester_username: str, target_household: str):
         actual_target = target_household
         print(f"  [Admin稽核] {requester_username} 查閱了 household={actual_target} 的資料，"
               f"正在把這個存取行為本身上鏈...")
-        # 關鍵：Admin的查閱行為本身也送一筆交易上鏈，無法被竄改或刪除
         send_audit_event(
             household_id=SYSTEM_AUDIT_HOUSEHOLD,
             action="admin_access",
@@ -71,9 +71,7 @@ def query_audit_log(requester_username: str, target_household: str):
 
     decoded_records = []
     for name, trytes_list in trytes_by_node.items():
-        for t in trytes_list:
-            raw = trytes_to_ascii(t[:2187])
-            decoded_records.append(read_record(raw, actual_target))
+        decoded_records = records_in_order(trytes_list, actual_target)   # oldest first
         break
 
     return {
@@ -86,18 +84,19 @@ def query_audit_log(requester_username: str, target_household: str):
 
 
 def query_system_audit_log():
-    """查詢SYSTEM_AUDIT這個分類，看所有Admin存取紀錄（模擬更高層級稽核者的視角）"""
+    """Admin access log (the audit of the audit), oldest first."""
     address = household_to_address(SYSTEM_AUDIT_HOUSEHOLD)
-    ft_resp = requests.post(NODES["iri_1 (14265)"], json={
+    node1 = NODES["iri_1 (14265)"]
+    ft_resp = requests.post(node1, json={
         "command": "findTransactions", "addresses": [address]
     }, headers=HEADERS).json()
     hashes = ft_resp.get("hashes", [])
     if not hashes:
         return []
-    gt_resp = requests.post(NODES["iri_1 (14265)"], json={
+    gt_resp = requests.post(node1, json={
         "command": "getTrytes", "hashes": hashes
     }, headers=HEADERS).json()
-    return [read_record(trytes_to_ascii(t[:2187]), SYSTEM_AUDIT_HOUSEHOLD) for t in gt_resp.get("trytes", [])]
+    return records_in_order(gt_resp.get("trytes", []), SYSTEM_AUDIT_HOUSEHOLD)
 
 
 if __name__ == "__main__":
@@ -119,12 +118,11 @@ if __name__ == "__main__":
     print(query_audit_log("admin_1", target_household="B"))
     print()
 
-    import time
     print("等待5秒讓Admin存取紀錄透過P2P傳播...")
     time.sleep(5)
 
     print("=" * 60)
-    print("查詢 SYSTEM_AUDIT：所有Admin存取行為的鏈上紀錄")
+    print("查詢 SYSTEM_AUDIT：所有Admin存取行為的鏈上紀錄（由舊到新）")
     print("=" * 60)
     for record in query_system_audit_log():
         print(" ", record)
