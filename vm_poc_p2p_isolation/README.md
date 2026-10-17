@@ -28,6 +28,37 @@
 5. 手動設定三節點互為 neighbor（每次重啟後都要重做）。
    遇到問題請參考 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
+### 啟動較慢的環境（QEMU / Raspberry Pi）調整等待時間
+
+`docker/setup_neighbors.sh` 預設各等待 60 秒：先等每個節點的 API 起來，再等三節點互連。
+在原生 x86 的 VM 上這樣就夠；若在 QEMU 模擬（例如 Raspberry Pi 5）下，IRI 啟動可能要好幾分鐘，
+請用環境變數調大等待時間：
+
+| 變數 | 說明 | 預設 |
+|---|---|---|
+| `READY_WAIT` | 每個節點等 API 回應的秒數 | 60 |
+| `CONNECT_WAIT` | 加入 neighbor 後，等三節點互連的秒數 | 60 |
+| `WAIT_SECONDS` | 一次同時設定上面兩者（個別變數優先） | （未設定） |
+
+```bash
+cd docker
+# 原生 VM：照舊
+./setup_neighbors.sh
+
+# Pi / QEMU
+READY_WAIT=600 CONNECT_WAIT=300 ./setup_neighbors.sh
+# 或
+WAIT_SECONDS=600 ./setup_neighbors.sh
+```
+
+- 變數必須是整數秒，否則腳本會直接報錯結束（結束碼 2）。
+- 逾時會顯示實際等了幾秒，並提示調大哪個變數；互連失敗時請再檢查
+  `docker logs <node> | grep -i -E 'handshak|drop|MWM|coordinator'`。
+- 注意：Pi 上若是 `docker compose` v2，容器名稱是連字號；`scripts/restore.sh` 需用
+  `CONTAINER_NAME`、`COMPASS_CONTAINER` 環境變數覆蓋。
+- 注意：Pi 5 預設 16K page，x86 模擬需要 4K page（`getconf PAGESIZE` 應為 4096；
+  否則在 `/boot/firmware/config.txt` 加 `kernel=kernel8.img` 後重開機）。
+
 ## 已知限制
 - Coordinator 已修復可正常發送 milestone，但demo腳本因繞開PyOTA/pysha3相依問題，
   手動構造交易格式時bundle hash未真正計算，故測試交易無法進入confirmed狀態，
