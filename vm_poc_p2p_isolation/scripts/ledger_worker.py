@@ -200,6 +200,8 @@ def process_event(row, bridge, chain, log=print):
         if ref:
             log(f"  [{eid[:8]}] anchor already on chain -> skip submit (recovery)")
         else:
+            if row.get("recovery_required") or row.get("ledger_reference"):
+                raise TransientError("recovery: anchor not visible; refusing automatic resubmission, inspect chain before manual reset")
             log(f"  [{eid[:8]}] submitting anchor for family {hid}")
             chain.submit(hid, eid, h)
             ref = chain.wait_ref(hid, eid, h)
