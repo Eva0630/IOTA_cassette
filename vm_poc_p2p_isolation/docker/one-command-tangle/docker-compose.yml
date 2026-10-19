@@ -20,6 +20,8 @@ services:
       -tick ${TICK_RATE}
       -host http://localhost:${IRI_PORT}
       -statePath /state/statefile
+    restart: always
+    stop_grace_period: 60s
   iri:
     network_mode: host
     image: "iotaledger/iri:latest"
