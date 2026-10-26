@@ -10,9 +10,11 @@ DEMO_USER="Admin0123456789"
 DEMO_EMAIL="admin@example.com"
 FAMILY_NAME="My Sweet Home"
 GATEWAY_NAME="My Sweet Home Gateway"
-DOOR_ID="${DOOR_ID:-DOOR_LOCK_001}"   # 接實體 ESP32：DOOR_ID=E8:31:CD:82:80:C8 ~/demo_reset.sh
+DOOR_ID="${DOOR_ID:-28:84:85:5C:A2:E4}"
+DOOR2_ID="${DOOR2_ID:-E8:31:CD:82:80:C8}"
 DEVICES=(                              # device_id|顯示名稱|device_type
   "${DOOR_ID}|前門智慧鎖|smart_lock"
+  "${DOOR2_ID}|後門智慧鎖|smart_lock"
   "SAFE_001|保險箱|smart_lock"
 )
 ### ----------------------------------

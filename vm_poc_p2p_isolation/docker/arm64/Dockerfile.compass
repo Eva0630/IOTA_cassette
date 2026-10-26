@@ -1,0 +1,4 @@
+FROM eclipse-temurin:8-jre
+COPY coordinator_deploy.jar /coordinator_deploy.jar
+ENTRYPOINT ["java","-jar"]
+CMD ["coordinator_deploy.jar"]
