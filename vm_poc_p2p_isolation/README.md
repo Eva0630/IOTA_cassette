@@ -20,8 +20,14 @@
 0. 前置條件：Compass 需要 `layers/`（預先建好的 Merkle tree），**它不是 `-bootstrap` 產生的，也不在本 repo 中**。
    請 clone 上游專案取得：`git clone https://github.com/iota-community/one-command-tangle.git`，
    再把其中的 `layers/` 整個複製到 `docker/one-command-tangle/layers/`（約 170MB，不要 commit）。
-1. 進入 `docker/one-command-tangle/`，執行 `cp .env.example .env`。
-   `COMPASS_SEED` 已是上游公開的預設值（僅限本機測試），不需要修改。
+1. 進入 `docker/one-command-tangle/`，執行 `cp .env.example .env`，設定 `COMPASS_SEED`：
+   - `.env.example` 只放佔位字串（不是合法 seed，Compass 會直接失敗），不再附上游公開的預設 seed。
+   - 隨機 seed：`python3 gen_seed.py`（81 tryte，用 `secrets`）。**但 seed 與 `layers/` 共同決定
+     coordinator address**：用新 seed 就必須用同一個 seed 重算 `layers/`，並把兩個 compose 檔的
+     `--testnet-coordinator` 改成新的位址，等於一條新鏈。
+   - 若只是本機測試、直接沿用上游 `layers/` 與 compose 內寫死的 coordinator address，
+     seed 必須用上游 one-command-tangle `.env` 的預設值（公開、不安全，只能用在內網測試）。
+   - **已在運作的鏈（例如 Pi）不要改 seed**，除非要用 `pi_ops/reset_chain.sh` 重建整條鏈。
 2. **第一次啟動**前，把 `.env` 的 `EXTRA_COMPASS_FLAGS` 改成 `"-bootstrap"`，然後執行 `docker compose up -d`。
 3. 確認 `latestMilestoneIndex` 持續增加後，把 `EXTRA_COMPASS_FLAGS` 改回 `""`，之後都不要再用 `-bootstrap`，否則出現 `Network already bootstrapped`。
 4. 啟動第二、三節點：`cd ../multi-nodes && docker compose up -d`

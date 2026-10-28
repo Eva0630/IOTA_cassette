@@ -8,9 +8,14 @@ Flow per event:
   3. look on the chain FIRST (crash recovery: never blindly resubmit)
   4. if not found: submit an anchor (event_id + payload_hash) via send_audit_event
   5. report SUBMITTED with the tx hash as ledger_reference
-  6. wait until ALL 3 nodes return the same anchor tx -> report CONFIRMED
-     (confirmation_method = MULTINODE_CONSISTENCY, NOT milestone confirmation)
-  7. on error: fail(retryable=True/False)
+  6. wait until ALL 3 nodes return the same anchor tx (else RETRY)
+  7. wait up to milestone_wait seconds for a Compass milestone to confirm it
+     (getInclusionStates against the latest solid milestone, see iota_bundle.py):
+       confirmed     -> report CONFIRMED, confirmation_method = MILESTONE
+       not in time   -> report CONFIRMED, confirmation_method = MULTINODE_CONSISTENCY
+                        (the old behaviour; e.g. anchors written before the bundle-hash
+                        fix can never be milestone-confirmed)
+  8. on error: fail(retryable=True/False)
 
 The anchor is a normal encrypted audit record (action "ledger_anchor") under the
 household address of the event's family_id, so UC5.3 isolation applies to it.
@@ -33,7 +38,9 @@ NODES = {
 }
 HEADERS = {"Content-Type": "application/json", "X-IOTA-API-Version": "1"}
 MAX_RETRIES = 5
-CONFIRM_METHOD = "MULTINODE_CONSISTENCY"
+CONFIRM_METHOD = "MULTINODE_CONSISTENCY"     # fallback: all 3 nodes return the same anchor
+CONFIRM_MILESTONE = "MILESTONE"              # a Compass milestone references the anchor
+MILESTONE_WAIT = int(os.environ.get("LEDGER_MILESTONE_WAIT", "120"))   # seconds; TICK_RATE is 30 s
 
 
 class PermanentError(Exception):
@@ -71,10 +78,11 @@ def verify_event(row: dict) -> dict:
 # ---------------- chain access (real) ----------------
 
 class IotaChain:
-    def __init__(self, nodes=NODES, node1_wait=15, all_nodes_wait=90):
+    def __init__(self, nodes=NODES, node1_wait=15, all_nodes_wait=90, milestone_wait=None):
         self.nodes = nodes
         self.node1_wait = node1_wait
         self.all_nodes_wait = all_nodes_wait
+        self.milestone_wait = MILESTONE_WAIT if milestone_wait is None else milestone_wait
 
     def _post(self, url, body):
         import requests
@@ -139,6 +147,25 @@ class IotaChain:
             if time.time() >= end:
                 return None
             time.sleep(3)
+
+    def is_milestone_confirmed(self, tx_hash):
+        """True if node1 says a milestone confirms tx_hash (getInclusionStates)."""
+        from iota_bundle import inclusion_states
+        first = list(self.nodes.values())[0]
+        return inclusion_states(first, [tx_hash])[0]
+
+    def wait_milestone(self, tx_hash):
+        """Poll for milestone confirmation up to milestone_wait seconds. Never raises."""
+        end = time.time() + self.milestone_wait
+        while True:
+            try:
+                if self.is_milestone_confirmed(tx_hash):
+                    return True
+            except Exception:
+                pass
+            if time.time() >= end:
+                return False
+            time.sleep(5)
 
 
 # ---------------- bridge (mock now; HTTP once the API endpoints exist) ----------------
@@ -212,8 +239,15 @@ def process_event(row, bridge, chain, log=print):
         agreed = chain.wait_all(hid, eid, h)
         if agreed is None:
             raise TransientError("anchor not yet identical on all 3 nodes")
-        bridge.confirm(eid, agreed, CONFIRM_METHOD)
-        log(f"  [{eid[:8]}] CONFIRMED  ref={agreed[:16]}...")
+        method = CONFIRM_METHOD
+        wait_milestone = getattr(chain, "wait_milestone", None)   # fake chains in tests may lack it
+        if wait_milestone is not None:
+            if wait_milestone(agreed):
+                method = CONFIRM_MILESTONE
+            else:
+                log(f"  [{eid[:8]}] no milestone confirmation in time -> falling back to {CONFIRM_METHOD}")
+        bridge.confirm(eid, agreed, method)
+        log(f"  [{eid[:8]}] CONFIRMED ({method})  ref={agreed[:16]}...")
         return "CONFIRMED"
     except PermanentError as e:
         bridge.fail(eid, str(e), False)

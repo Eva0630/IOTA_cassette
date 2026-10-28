@@ -7,6 +7,8 @@ this file only replaces MockBridge.
 Environment:
   LEDGER_API_URL        base URL of IOTA_API, e.g. http://127.0.0.1:8091
   LEDGER_WORKER_TOKEN   the fixed service token created at first deployment
+  LEDGER_MILESTONE_WAIT seconds to wait for milestone confirmation (default 120), then
+                        fall back to confirmation_method=MULTINODE_CONSISTENCY
   AUDIT_MASTER_KEY      same key used by the other scripts
 
 Usage:
@@ -176,6 +178,9 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="preview and verify hashes; no SQL state changes")
     ap.add_argument("--limit", type=int, default=1, help="max events per claim (default 1; use 1 for real chain work)")
     ap.add_argument("--interval", type=int, default=10)
+    ap.add_argument("--milestone-wait", type=int, default=lw.MILESTONE_WAIT,
+                    help="seconds to wait for milestone confirmation before falling back to "
+                         "MULTINODE_CONSISTENCY (default: env LEDGER_MILESTONE_WAIT or 120)")
     ap.add_argument("--worker-id", default=os.environ.get("LEDGER_WORKER_ID", "worker-1"))
     a = ap.parse_args()
 
@@ -208,7 +213,7 @@ def main():
             print("AUDIT_MASTER_KEY is not set. Run: export AUDIT_MASTER_KEY=$(cat ~/.audit_master_key)")
             sys.exit(2)
         bridge = HttpBridge(url, token, worker_id=a.worker_id, max_claim=a.limit)
-        lw.run(bridge, lw.IotaChain(), once=a.once, interval=a.interval)
+        lw.run(bridge, lw.IotaChain(milestone_wait=a.milestone_wait), once=a.once, interval=a.interval)
     except BridgeAuthError as e:
         print(f"FATAL: {e}")
         sys.exit(3)

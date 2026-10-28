@@ -24,7 +24,8 @@ services:
     stop_grace_period: 60s
   iri:
     network_mode: host
-    image: "iotaledger/iri:latest"
+    # pinned (was :latest; Docker Hub v1.8.6-RELEASE has the same amd64 digest sha256:47c34671...)
+    image: "iotaledger/iri:v1.8.6-RELEASE"
     restart: always
     environment:
       - JAVA_MAX_MEMORY=1500M

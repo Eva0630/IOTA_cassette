@@ -63,4 +63,41 @@ for _ in range(lw.MAX_RETRIES + 1):
     lw.run(b, c, log=q)
 check("retry limit -> DEAD_LETTER", status(p)["8aa5b9c2"]["status"] == "DEAD_LETTER")
 
+# 6. milestone confirmation -> method MILESTONE; no milestone in time -> fallback
+class MsChain(FakeChain):
+    def __init__(self, confirmed, **k):
+        super().__init__(**k); self.confirmed, self.asked = confirmed, []
+    def wait_milestone(self, ref):
+        self.asked.append(ref); return self.confirmed
+b, p = fresh(); c = MsChain(True); lw.run(b, c, log=q); s = status(p)["8aa5b9c2"]
+check("milestone confirmed -> MILESTONE", s["status"] == "CONFIRMED" and s["confirmation_method"] == "MILESTONE")
+check("milestone checked on the agreed ref", c.asked == [s["ledger_reference"]])
+b, p = fresh(); c = MsChain(False); lw.run(b, c, log=q); s = status(p)["8aa5b9c2"]
+check("no milestone in time -> MULTINODE_CONSISTENCY",
+      s["status"] == "CONFIRMED" and s["confirmation_method"] == "MULTINODE_CONSISTENCY")
+b, p = fresh(); c = MsChain(True, hide_from_node3=True); lw.run(b, c, log=q)
+check("nodes disagree -> RETRY, milestone not consulted",
+      status(p)["8aa5b9c2"]["status"] == "RETRY" and c.asked == [])
+
+# 7. real IotaChain.wait_milestone against a fake node (getInclusionStates)
+import requests
+calls = []
+def fake_post(url, json=None, headers=None, timeout=None):
+    calls.append(json)
+    d = ({"latestSolidSubtangleMilestone": "M" * 81, "latestSolidSubtangleMilestoneIndex": 9}
+         if json["command"] == "getNodeInfo" else {"states": [len(calls) >= 4]})
+    return type("R", (), {"json": lambda self: d})()
+orig_post, orig_sleep = requests.post, lw.time.sleep
+requests.post, lw.time.sleep = fake_post, (lambda *_: None)
+try:
+    ch = lw.IotaChain(milestone_wait=60)
+    check("wait_milestone polls until confirmed", ch.wait_milestone("X" * 81) is True and len(calls) == 4)
+    check("getInclusionStates got the solid milestone as tip", calls[-1].get("tips") == ["M" * 81])
+    def down(*a, **k): raise requests.ConnectionError("node down")
+    requests.post = down
+    check("node down -> wait_milestone returns False (no crash)",
+          lw.IotaChain(milestone_wait=0).wait_milestone("X" * 81) is False)
+finally:
+    requests.post, lw.time.sleep = orig_post, orig_sleep
+
 print("\nALL PASSED" if not fails else f"\n{fails} FAILED"); sys.exit(1 if fails else 0)

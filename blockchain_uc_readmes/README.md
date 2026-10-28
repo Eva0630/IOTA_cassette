@@ -17,17 +17,31 @@
 
 ## 共用 Ledger Bridge API
 
-區塊鏈組員的 Worker 建議只透過以下內部 API 交換資料：
+區塊鏈組員的 Worker 只透過以下內部 API 交換資料。實作在 IOTA_API repo 的
+`API/ledger_bridge/router.py`（FastAPI router，prefix `/ledger`，由 `API/gateway.py` 掛載）；
+Worker 端實作是本 repo 的 `vm_poc_p2p_isolation/scripts/http_bridge.py`。
 
-| API | 用途 |
-|---|---|
-| `POST /internal/ledger/events/claim` | 領取待上鏈事件並取得處理租約 |
-| `POST /internal/ledger/events/confirm` | 回報成功、交易參考值與確認時間 |
-| `POST /internal/ledger/events/fail` | 回報失敗、是否可重試及錯誤代碼 |
-| `POST /internal/ledger/events/status` | 查詢單一事件的上鏈狀態 |
-| `GET /internal/ledger/health` | 查詢待處理、重試及死信數量 |
+所有端點都需要 `Authorization: Bearer <LEDGER_WORKER_TOKEN>`（Server 端 token 至少 32 字元，否則回 503；錯誤 token 回 401）。
 
-## 建議目錄
+| API | Request body | 用途 |
+|---|---|---|
+| `GET /ledger/health` | — | 檢查 DB 連線與 migration，回傳 `{ok, protocol_version, claim_token_required, counts}`，`counts` 為各狀態事件數 |
+| `POST /ledger/claim` | `worker_id`、`limit`（1–20，預設 1）、`lease_seconds`（15–3600，預設 300）、`preview`（預設 false） | 領取 `PENDING`、已到重試時間的 `RETRY`、租約已過期的 `PROCESSING`/`SUBMITTED` 事件並取得租約；每筆回傳 `claim_token`、`recovery_required`、`previous_status`、`ledger_reference` 等。`preview=true` 只預覽、不改狀態、不發 token |
+| `POST /ledger/{event_id}/submitted` | `claim_token`、`ledger_reference` | 回報已送上鏈（→ `SUBMITTED`），記錄交易 hash |
+| `POST /ledger/{event_id}/confirm` | `claim_token`、`ledger_reference`、`confirmation_method` | 回報已確認（→ `CONFIRMED`），記錄 `confirmed_at` 與確認方式 |
+| `POST /ledger/{event_id}/fail` | `claim_token`、`error`（≤500 字）、`retryable` | 回報失敗（→ `RETRY`，指數退避；超過 5 次或不可重試 → `DEAD_LETTER`） |
+
+規則：
+- `submitted` / `confirm` / `fail` 都必須帶 claim 時拿到的 `claim_token`，且租約未過期、事件仍為 `PROCESSING`/`SUBMITTED`，否則回 409。
+- `ledger_reference` 一旦記錄就不能換成別的交易（409）。
+- 同一個 `claim_token` 重送完全相同的回報是冪等的（回傳上次結果）；內容不同則 409。
+- 沒有單一事件狀態查詢端點；狀態查 `ledger_events` 資料表或看 `health` 的 `counts`。
+- `confirmation_method`：Worker 以 milestone（`getInclusionStates`）確認時填 `MILESTONE`；
+  等待逾時則退回 `MULTINODE_CONSISTENCY`（三節點讀到相同的存證交易）。
+
+> 早期版本文件寫的 `/internal/ledger/events/*`（含 `status` 端點）沒有實作，以上表為準。
+
+## 建議目錄（早期規劃，實際 API 實作見 IOTA_API `API/ledger_bridge/`）
 
 ```text
 api/
