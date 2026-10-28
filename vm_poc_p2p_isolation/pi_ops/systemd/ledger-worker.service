@@ -1,0 +1,19 @@
+[Unit]
+Description=IOTA Ledger Worker (http_bridge)
+RequiresMountsFor=/mnt/usb
+After=docker.service iota-start.service
+Wants=iota-start.service
+
+[Service]
+Type=simple
+User=iota
+WorkingDirectory=/mnt/usb/IOTA_cassette/vm_poc_p2p_isolation/scripts
+EnvironmentFile=/mnt/usb/IOTA_API/.ledger.env
+Environment=LEDGER_API_URL=http://127.0.0.1:8091
+Environment=LEDGER_WORKER_ID=pi5-worker-1
+ExecStart=/bin/bash -c 'export AUDIT_MASTER_KEY=$$(cat /home/iota/.audit_master_key); exec /usr/bin/python3 -u http_bridge.py --limit 1 --interval 5'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=IOTA tangle + API bring-up
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=iota
+ExecStart=/home/iota/start_all.sh
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target
