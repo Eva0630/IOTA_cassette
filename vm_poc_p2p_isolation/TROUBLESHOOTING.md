@@ -9,7 +9,8 @@
 - 缺少 layers 時，Compass 會出現 `IndexOutOfBoundsException: Index: 0, Size: 0`。
 - 取得方式：clone 上游專案，或從已運作的機器複製 `layers/`（約 170MB，不要 commit 進 git）。
 - IRI 的 `--testnet-coordinator` 位址是由預設 seed 加上這份 layers 推導出來的，兩者必須對應。
-- `COMPASS_SEED` 使用上游公開的預設值（見 `.env.example`），僅限本機測試。
+- `.env.example` 的 `COMPASS_SEED` 只是佔位字串；本機測試沿用上游 layers 時要填上游 `.env` 的公開預設 seed，
+  正式用途請 `python3 gen_seed.py` 產生新 seed 並重算 layers、更新 coordinator address（= 新鏈，見 README 部署步驟 1）。
 
 ## 1. Compass 啟動就崩潰：Network already bootstrapped
 

@@ -12,7 +12,7 @@ jar 的內容與上游完全相同，沒有修改過。
 
 從上游 amd64 映像檔取出，只複製檔案，不需要執行它。在本資料夾（docker/arm64）執行：
 
-    docker create --platform linux/amd64 --name tmp-iri iotaledger/iri:latest
+    docker create --platform linux/amd64 --name tmp-iri iotaledger/iri:v1.8.6-RELEASE
     docker cp tmp-iri:/iri/target/iri-1.8.6-RELEASE.jar iri-build/
     docker rm tmp-iri
     docker create --platform linux/amd64 --name tmp-compass iotacafe/compass:coordinator-8306ac7

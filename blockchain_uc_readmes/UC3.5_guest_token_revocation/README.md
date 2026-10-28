@@ -78,10 +78,10 @@
 
 ### Ledger Worker 負責
 
-- 透過 claim API 取得事件。
+- 透過 `POST /ledger/claim` 取得事件（API 細節見上層 [README](../README.md#共用-ledger-bridge-api)）。
 - 重新計算並核對 `payload_hash`。
 - 將必要事件資料或雜湊提交至 IOTA。
-- 成功時回報交易參考值；失敗時回報錯誤與是否可重試。
+- 送出後以 `POST /ledger/{event_id}/submitted` 回報交易參考值，確認後以 `POST /ledger/{event_id}/confirm` 回報；失敗時以 `POST /ledger/{event_id}/fail` 回報錯誤與是否可重試。
 
 ## 建議成功回應
 
