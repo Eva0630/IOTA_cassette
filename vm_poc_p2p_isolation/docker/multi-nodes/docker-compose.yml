@@ -10,7 +10,8 @@ networks:
 
 services:
   hornet-node-2:
-    image: iotaledger/iri:latest
+    # pinned (was :latest; same digest as v1.8.6-RELEASE)
+    image: iotaledger/iri:v1.8.6-RELEASE
     container_name: hornet-node-2
     restart: always
     environment:
@@ -39,7 +40,8 @@ services:
         ipv4_address: 172.28.0.2
 
   hornet-node-3:
-    image: iotaledger/iri:latest
+    # pinned (was :latest; same digest as v1.8.6-RELEASE)
+    image: iotaledger/iri:v1.8.6-RELEASE
     container_name: hornet-node-3
     restart: always
     environment:

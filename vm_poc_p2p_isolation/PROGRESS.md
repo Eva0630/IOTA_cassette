@@ -238,3 +238,69 @@ Pi 上**沒有安裝 Flutter SDK**（不必要）。日後更新流程：在 deb
 - `sudo` 現在要密碼（舊的 NOPASSWD 隨 overlay 一起消失）；`iota` 在 `docker` 群組，docker 指令不需 sudo
 - `over_voltage_delta` 尚未加回 `config.txt`、`i2cdetect` 尚未安裝（兩者都要 sudo）
 - HackMD 自動更新仍不可用：`HACKMD_API_TOKEN` 已在機密區，但 egress proxy 未啟用
+
+---
+
+## 11. 2026-10-28：bundle hash 修正 + milestone 確認（branch `fix/ledger-confirmation`）
+
+### 11.1 問題
+
+之前所有送出的交易 `bundle` 欄位都是 `"9"*81`（註解寫「attachToTangle 會自動算好」——**錯的**，
+attachToTangle 只填 trunk/branch/attachment 欄位與 nonce）。IRI 的 BundleValidator 會用 Kerl 重算
+bundle hash，不符就是無效 bundle → tip selection 不會選、milestone 永遠不會確認。
+所以 Worker 只能用「三節點都看到同一筆」（`MULTINODE_CONSISTENCY`）當作確認。
+
+### 11.2 修正
+
+- 新增 `scripts/iota_bundle.py`（純 stdlib）：trytes/trits 轉換、Keccak-384 + Kerl、bundle essence /
+  bundle hash、normalized hash 含 13（'M'）時遞增 obsoleteTag 重算、2673-tryte 交易組裝、
+  長訊息自動切成多筆 2187-tryte fragment（同一 bundle）、`attach_and_send()`
+  （getTransactionsToApprove → attachToTangle → storeTransactions → broadcastTransactions，
+  attach 後先在本機重驗 bundle）、`inclusion_states()`（getInclusionStates，tips 帶最新 solid milestone）。
+- `send_audit_event.py`、`send_tx.py`、`send_tx_b.py` 改用它；`check_confirmation.py` 改用同一套確認函式，
+  可指定 household 或 `--hash`。
+- `ledger_worker.py`：三節點一致之後，再等最多 `LEDGER_MILESTONE_WAIT`（預設 120 秒，
+  `http_bridge.py --milestone-wait` 可覆蓋）看 milestone 是否確認：確認 → `confirmation_method=MILESTONE`；
+  逾時 → 照舊 `MULTINODE_CONSISTENCY`。/ledger API 合約不變。
+- 測試：`python test_iota_bundle.py`（PyOTA 公開的 Kerl 向量與兩組真實 bundle 向量，來源寫在檔頭）、
+  `python test_ledger_worker.py`（新增 MILESTONE / fallback 情境）。
+
+**注意**：修正前已上鏈的舊交易 bundle 仍是 9*81，永遠不會被確認；它們的 recovery 會等滿
+milestone_wait 後以 `MULTINODE_CONSISTENCY` 收尾（正常現象）。
+
+### 11.3 仍需在 Pi 上用真節點驗證（尚未做）
+
+本機沒有節點，以上只用測試向量與假節點驗證過。在 Pi 上：
+
+```bash
+cd /mnt/usb/IOTA_cassette && git fetch && git checkout fix/ledger-confirmation
+cd vm_poc_p2p_isolation/scripts
+python3 test_iota_bundle.py                       # 離線測試，應全部 OK
+export AUDIT_MASTER_KEY=$(cat ~/.audit_master_key)
+
+# 1) 送一筆新交易，等 1~3 個 milestone（TICK_RATE 30 秒）後看確認狀態
+python3 send_audit_event.py A unlock_door user_123 success
+sleep 90; python3 check_confirmation.py A          # 新交易應為「已確認」，舊交易維持 pending
+
+# 2) IRI 若仍拒絕，看 log
+docker logs --since 5m one-command-tangle-iri-1 2>&1 | grep -i -E 'invalid|bundle|error' | tail
+
+# 3) Worker 端到端（需有 PENDING 事件；之後查 confirmation_method）
+../pi_ops/worker_run.sh --check
+../pi_ops/worker_run.sh --once --limit 1
+docker exec -i iot_mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" devicemanagement -e \
+  "SELECT event_id,status,confirmation_method,ledger_reference FROM ledger_events ORDER BY created_at DESC LIMIT 5"'
+```
+
+驗收標準：新事件 `confirmation_method = MILESTONE`；若 120 秒內沒確認，先把 `LEDGER_MILESTONE_WAIT`
+調大（例如 240）再試，仍不行再看 IRI log。`getInclusionStates` 若回 error，`inclusion_states()` 會自動改成
+不帶 tips 再試一次。
+
+### 11.4 同 branch 的小修
+
+- `iotaledger/iri:latest` → `iotaledger/iri:v1.8.6-RELEASE`（Docker Hub 上與原 latest 同一個 digest；
+  Pi 用 arm64 覆蓋檔的 `iri-arm64:1.8.6`，不受影響）。
+- `.env.example` 移除上游公開的 COMPASS seed，改佔位字串；新增 `docker/one-command-tangle/gen_seed.py`。
+  **換 seed = 新鏈**（要重算 layers、改 coordinator address），demo 前不要動 Pi 的 seed。
+- `blockchain_uc_readmes/`：API 端點改成實際實作的 `/ledger/health`、`/ledger/claim`、
+  `/ledger/{event_id}/submitted|confirm|fail`。
